@@ -2,83 +2,408 @@
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>QR-PONG MULTIPLAYER</title>
-    <!-- Einbindung der Echtzeit-Bibliothek für Multiplayer-Synchronisation -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>NEON PONG MULTIPLAYER</title>
+    <!-- Echtzeit-Bibliothek für Multiplayer-Synchronisation -->
     <script src="https://unpkg.com/mqtt@4.3.7/dist/mqtt.min.js"></script>
     <style>
-        * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
-        body { background-color: #000000; color: #ffffff; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; }
-        .container { width: 100%; max-width: 400px; border: 3px solid #ffffff; padding: 30px; background-color: #000000; box-shadow: 8px 8px 0px #ffffff; }
-        h1 { font-size: 24px; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; margin-top: 0; border-bottom: 3px solid #ffffff; padding-bottom: 10px; text-align: center; }
-        h2 { font-size: 14px; text-transform: uppercase; letter-spacing: 1px; margin-top: 20px; color: #aaaaaa; }
-        input { background-color: #000000; color: #ffffff; border: 2px solid #ffffff; padding: 12px; width: 100%; font-size: 16px; margin-top: 8px; margin-bottom: 15px; outline: none; }
-        button { background-color: #ffffff; color: #000000; border: 2px solid #ffffff; padding: 15px 20px; font-size: 14px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; width: 100%; cursor: pointer; margin-top: 10px; }
-        button:hover { background-color: #000000; color: #ffffff; }
-        .view { display: none; }
+        :root {
+            --bg-color: #0d0d12;
+            --neon-pink: #ff007f;
+            --neon-blue: #00f3ff;
+            --neon-green: #39ff14;
+            --neon-yellow: #fffb00;
+        }
+        
+        * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        
+        body { 
+            background-color: var(--bg-color); 
+            color: #ffffff; 
+            margin: 0; 
+            padding: 20px; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center; 
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .container { 
+            width: 100%; 
+            max-width: 450px; 
+            background-color: rgba(20, 20, 30, 0.9); 
+            border-radius: 15px;
+            padding: 30px 20px; 
+            box-shadow: 0 0 20px rgba(0, 243, 255, 0.2);
+            text-align: center;
+        }
+
+        h1 { 
+            font-size: 32px; 
+            font-weight: 900; 
+            text-transform: uppercase; 
+            margin-top: 0; 
+            color: var(--neon-pink);
+            text-shadow: 0 0 10px var(--neon-pink), 0 0 20px var(--neon-pink);
+            margin-bottom: 30px;
+        }
+
+        h2 { font-size: 18px; color: var(--neon-blue); text-transform: uppercase; margin-bottom: 10px; }
+        
+        label { display: block; text-align: left; font-size: 12px; color: #aaa; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 1px;}
+
+        input, select { 
+            background-color: #1a1a24; 
+            color: #ffffff; 
+            border: 2px solid var(--neon-blue); 
+            border-radius: 8px;
+            padding: 15px; 
+            width: 100%; 
+            font-size: 16px; 
+            margin-bottom: 20px; 
+            outline: none; 
+            transition: all 0.3s;
+        }
+        
+        input:focus, select:focus {
+            box-shadow: 0 0 10px var(--neon-blue);
+        }
+
+        button { 
+            background-color: transparent; 
+            color: #ffffff; 
+            border: 3px solid; 
+            border-radius: 8px;
+            padding: 15px 20px; 
+            font-size: 16px; 
+            font-weight: bold; 
+            text-transform: uppercase; 
+            width: 100%; 
+            cursor: pointer; 
+            margin-bottom: 15px; 
+            transition: 0.3s;
+        }
+
+        .btn-pink { border-color: var(--neon-pink); box-shadow: 0 0 10px rgba(255, 0, 127, 0.4); }
+        .btn-pink:hover, .btn-pink:active { background-color: var(--neon-pink); }
+        
+        .btn-blue { border-color: var(--neon-blue); box-shadow: 0 0 10px rgba(0, 243, 255, 0.4); }
+        .btn-blue:hover, .btn-blue:active { background-color: var(--neon-blue); color: #000; }
+        
+        .btn-green { border-color: var(--neon-green); box-shadow: 0 0 10px rgba(57, 255, 20, 0.4); }
+        .btn-green:hover, .btn-green:active { background-color: var(--neon-green); color: #000; }
+
+        .view { display: none; animation: fadeIn 0.4s; }
         .active-view { display: block; }
-        #question-display { font-size: 20px; font-weight: bold; border: 2px solid #ffffff; padding: 20px; margin: 20px 0; min-height: 120px; display: flex; align-items: center; justify-content: center; text-align: center; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .room-code-display {
+            font-size: 48px;
+            font-weight: bold;
+            color: var(--neon-yellow);
+            text-shadow: 0 0 15px var(--neon-yellow);
+            letter-spacing: 5px;
+            margin: 20px 0;
+        }
+
+        .player-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        .player-badge {
+            background-color: var(--neon-blue);
+            color: #000;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        #question-display { 
+            font-size: 24px; 
+            font-weight: bold; 
+            padding: 30px 15px; 
+            margin: 20px 0; 
+            min-height: 200px; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            text-align: center; 
+            background-color: #1a1a24;
+            border-radius: 10px;
+            border: 2px dashed var(--neon-pink);
+        }
+        
+        .host-only { display: none; }
     </style>
 </head>
 <body>
+
     <div class="container">
-        <div id="view-login" class="view active-view">
-            <h1>QR-PONG</h1>
-            <label>DEIN NAME</label>
-            <input type="text" id="username" maxlength="12">
-            <label>RAUM-CODE</label>
-            <input type="tel" id="roomcode" maxlength="4">
-            <button onclick="connectToGame()">SPIEL BEITRETEN</button>
+        
+        <!-- STARTBILDSCHIRM -->
+        <div id="view-start" class="view active-view">
+            <h1>PARTY PONG</h1>
+            <button class="btn-pink" onclick="showView('view-host')">SPIEL HOSTEN</button>
+            <button class="btn-blue" onclick="showView('view-join')">SPIEL BEITRETEN</button>
         </div>
+
+        <!-- HOST SETTINGS -->
+        <div id="view-host" class="view">
+            <h2>SPIEL ERSTELLEN</h2>
+            <label>Dein Name (Host)</label>
+            <input type="text" id="host-name" placeholder="z.B. Partykönig">
+            
+            <label>Spielmodus</label>
+            <select id="game-mode">
+                <option value="classic">🍻 Classic (Bieten & Trinken)</option>
+                <option value="spicy">🌶️ Spicy (Geheimnisse & Dares)</option>
+                <option value="quiz">🧠 Quiz (Wer stiehlt mir die Show?)</option>
+            </select>
+
+            <label>Anzahl Spieler / Teams</label>
+            <input type="number" id="team-count" value="4" min="2" max="10">
+
+            <button class="btn-green" onclick="createRoom()">RAUM ERSTELLEN</button>
+            <button class="btn-blue" onclick="showView('view-start')">ZURÜCK</button>
+        </div>
+
+        <!-- JOIN SETTINGS -->
+        <div id="view-join" class="view">
+            <h2>RAUM BEITRETEN</h2>
+            <label>Dein Name</label>
+            <input type="text" id="player-name" placeholder="Dein Name">
+            
+            <label>4-stelliger Raum-Code</label>
+            <input type="tel" id="join-roomcode" maxlength="4" placeholder="1234" style="text-align: center; font-size: 24px; letter-spacing: 5px;">
+
+            <button class="btn-green" onclick="joinRoom()">BEITRETEN</button>
+            <button class="btn-blue" onclick="showView('view-start')">ZURÜCK</button>
+        </div>
+
+        <!-- LOBBY -->
         <div id="view-lobby" class="view">
-            <h1 id="lobby-title">RAUM: ----</h1>
-            <h2>KATEGORIE</h2>
-            <button onclick="selectCategory('klassik')">KLASSIK</button>
-            <button onclick="selectCategory('intim')">INTIM</button>
-            <button onclick="selectCategory('extrem')">EXTREM</button>
+            <h2>RAUM-CODE:</h2>
+            <div class="room-code-display" id="lobby-code">----</div>
+            <p id="lobby-mode-display" style="color: #aaa; margin-bottom: 20px;">Modus: Wird geladen...</p>
+            
+            <h3>SPIELER IM RAUM:</h3>
+            <div class="player-list" id="player-list">
+                <!-- Spieler tauchen hier auf -->
+            </div>
+
+            <div class="host-only" id="host-controls">
+                <button class="btn-pink" onclick="startGame()">SPIEL STARTEN</button>
+            </div>
+            <p id="wait-message" style="color: var(--neon-blue);">Warte auf den Host...</p>
         </div>
-        <div id="view-card" class="view">
-            <h1 id="card-category">KATEGORIE</h1>
-            <div id="question-display">Lade Frage...</div>
-            <button onclick="sendBackToLobby()">NÄCHSTE RUNDE</button>
+
+        <!-- GAME VIEW -->
+        <div id="view-game" class="view">
+            <h2 id="game-mode-title">KATEGORIE</h2>
+            <div id="question-display">Macht euch bereit...</div>
+            
+            <div class="host-only" id="game-controls">
+                <button class="btn-pink" onclick="nextQuestion()">NÄCHSTE FRAGE / AKTION</button>
+            </div>
         </div>
+
     </div>
+
     <script>
-        const questionPool = {
-            klassik: ["Trink 2 Schlucke.", "Bestimme jemanden, der 3 Schlucke trinkt.", "Nenne 5 Biermarken in 10s."],
-            intim: ["Was war dein peinlichstes Date?", "Beichte ein Geheimnis.", "Wer ist dein Typ hier?"],
-            extrem: ["Tausche Oberteil mit Nachbarn.", "Ex den Becher.", "10 Liegestütze."]
+        // --- DATENBANK FÜR FRAGEN ---
+        const questionDatabase = {
+            classic: [
+                "Biet-Spiel: Beide Teams bieten sich hoch. Wie viele Shots würdet ihr trinken, um einen Becher für 3 Runden zu schützen? Das höchste Gebot trinkt und der Becher ist sicher!",
+                "Biet-Spiel: Wer kann mehr Biermarken in 15 Sekunden aufzählen? Bietet euch hoch. Wer die Zahl nicht schafft, trinkt 4 Schlucke.",
+                "Regel-Erfinder: Der Host erfindet eine Regel, die bis zum Ende des Spiels gilt. (z.B. Nur mit Links trinken). Wer sie bricht, trinkt 2.",
+                "Wasserfall! Der Host fängt an zu trinken, alle anderen machen mit. Niemand darf absetzen, bevor der rechts von ihm absetzt.",
+                "Team-Check: Das Team, das aktuell weniger Becher übrig hat, verteilt 3 Schlucke.",
+                "Der Host bestimmt jemanden, der sofort 2 Schlucke trinken muss.",
+                "Kategorien: Der Host nennt eine Kategorie (z.B. Automarken). Reihum muss ein Begriff genannt werden. Wer zögert, trinkt.",
+                "Alle, die heute schon ihr Handy fallen gelassen haben, trinken 1 Schluck.",
+                "T-Rex: Der Spieler, der als nächstes wirft, muss seine Arme an den Körper pressen wie ein T-Rex.",
+                "Biet-Spiel: Wie viele Liegestütze macht ihr, damit das gegnerische Team einen extra Becher aufstellen muss? Bietet euch hoch!"
+            ],
+            spicy: [
+                "Zeige das letzte Foto in deiner Galerie oder trinke 3 Schlucke.",
+                "Wahrheit: Wer aus dieser Runde ist am ehesten dein Typ?",
+                "Dare: Lass den Spieler rechts von dir eine Nachricht an eine Person deiner Wahl schreiben (oder trinke 4).",
+                "Beichte das Peinlichste, das dir in den letzten 4 Wochen passiert ist, oder ex dein Glas.",
+                "Wer hat deiner Meinung nach den schlechtesten Style in der Runde? Zeig auf die Person. Beide trinken.",
+                "Welches Geheimnis haben deine Eltern bis heute nicht herausgefunden?",
+                "Dare: Tausche für 3 Runden dein Oberteil mit der Person gegenüber oder trinke 5 Schlucke.",
+                "Wahrheit: Mit wem aus der Runde würdest du auf eine einsame Insel gehen?",
+                "Zeig uns deine peinlichste Spotify-Playlist oder verteile 3 Schlucke an dich selbst.",
+                "Dare: Mach dem Host ein ernstgemeintes, leicht unangenehmes Kompliment."
+            ],
+            quiz: [
+                "Quiz: Was ist schwerer – 1 Kilo Federn oder 1 Kilo Blei? (Antwort: Beides gleich schwer). Wer zuerst richtig ruft, darf 2 verteilen.",
+                "Quiz: Wie viele Monate haben 28 Tage? (Antwort: Alle 12). Verlierer trinkt 1.",
+                "Quiz: Welche Farbe bekommst du, wenn du Blau und Gelb mischt? (Antwort: Grün).",
+                "Quiz: Welches Tier steht auf dem Logo von Porsche? (Antwort: Pferd). Der Langsamste trinkt.",
+                "Quiz: Wie viele Nullen hat eine Milliarde? (Antwort: 9). Wer falsch rät, trinkt 2.",
+                "Quiz: Was wird nasser, je mehr es trocknet? (Antwort: Ein Handtuch).",
+                "Quiz: Welcher Planet in unserem Sonnensystem ist der Sonne am nächsten? (Antwort: Merkur).",
+                "Quiz: In welchem Land liegt die Stadt Dubai? (Antwort: Vereinigte Arabische Emirate).",
+                "Quiz: Wie heißt die Hauptstadt von Australien? (Antwort: Canberra. NICHT Sydney!). Wer Sydney sagt, trinkt doppelt.",
+                "Quiz: Welches ist das längste Wort im Duden? (Antwort: Aufmerksamkeitsdefizit-Hyperaktivitätsstörung - oder einfach raten lassen wer näher dran ist)."
+            ]
         };
-        let mqttClient = null, currentRoom = "", myName = "";
-        function connectToGame() {
-            myName = document.getElementById("username").value;
-            currentRoom = document.getElementById("roomcode").value;
+
+        // --- VARIABLEN ---
+        let mqttClient = null;
+        let roomCode = "";
+        let myName = "";
+        let isHost = false;
+        let selectedMode = "classic";
+        let players = [];
+        let askedQuestions = [];
+
+        // UI-Helper
+        function showView(viewId) {
+            document.querySelectorAll('.view').forEach(v => v.classList.remove('active-view'));
+            document.getElementById(viewId).classList.add('active-view');
+        }
+
+        // --- HOST LOGIK ---
+        function createRoom() {
+            myName = document.getElementById('host-name').value || "Host";
+            selectedMode = document.getElementById('game-mode').value;
+            isHost = true;
+            
+            // Generiere 4-stelligen Code
+            roomCode = Math.floor(1000 + Math.random() * 9000).toString();
+            
+            setupMQTT();
+        }
+
+        // --- JOIN LOGIK ---
+        function joinRoom() {
+            myName = document.getElementById('player-name').value || "Spieler";
+            roomCode = document.getElementById('join-roomcode').value;
+            
+            if(roomCode.length !== 4) {
+                alert("Bitte einen 4-stelligen Code eingeben!");
+                return;
+            }
+            
+            isHost = false;
+            setupMQTT();
+        }
+
+        // --- NETZWERK & MQTT ---
+        function setupMQTT() {
             mqttClient = mqtt.connect('wss://broker.hivemq.com:8884/mqtt');
+            
             mqttClient.on('connect', () => {
-                mqttClient.subscribe(`qrpong/room/${currentRoom}`);
-                document.getElementById("lobby-title").innerText = `RAUM: ${currentRoom}`;
-                document.querySelectorAll('.view').forEach(v => v.classList.remove('active-view'));
-                document.getElementById('view-lobby').classList.add('active-view');
+                // Wir abonnieren den Raum
+                mqttClient.subscribe(`neonpong/room/${roomCode}`);
+                
+                // Wechsel zur Lobby
+                showView('view-lobby');
+                document.getElementById('lobby-code').innerText = roomCode;
+                
+                if (isHost) {
+                    document.getElementById('host-controls').style.display = 'block';
+                    document.getElementById('wait-message').style.display = 'none';
+                    document.getElementById('lobby-mode-display').innerText = `Modus: ${selectedMode.toUpperCase()}`;
+                    players.push(myName);
+                    updatePlayerList();
+                } else {
+                    document.getElementById('host-controls').style.display = 'none';
+                    document.getElementById('wait-message').style.display = 'block';
+                    // Sage dem Host, dass ich da bin
+                    mqttClient.publish(`neonpong/room/${roomCode}`, JSON.stringify({ type: "PLAYER_JOIN", name: myName }));
+                }
             });
+
             mqttClient.on('message', (topic, message) => {
                 const data = JSON.parse(message.toString());
+                
+                // Wenn jemand beitritt (Host verarbeitet das)
+                if (data.type === "PLAYER_JOIN" && isHost) {
+                    if (!players.includes(data.name)) {
+                        players.push(data.name);
+                        updatePlayerList();
+                        // Host sendet aktualisierte Liste und Modus an alle
+                        mqttClient.publish(`neonpong/room/${roomCode}`, JSON.stringify({ 
+                            type: "LOBBY_SYNC", 
+                            players: players,
+                            mode: selectedMode 
+                        }));
+                    }
+                }
+                
+                // Wenn der Host die Lobby synchronisiert (Für Spieler)
+                if (data.type === "LOBBY_SYNC" && !isHost) {
+                    players = data.players;
+                    selectedMode = data.mode;
+                    document.getElementById('lobby-mode-display').innerText = `Modus: ${selectedMode.toUpperCase()}`;
+                    updatePlayerList();
+                }
+
+                // Wenn das Spiel startet
+                if (data.type === "START_GAME") {
+                    showView('view-game');
+                    document.getElementById('game-mode-title').innerText = selectedMode.toUpperCase();
+                    if (isHost) {
+                        document.getElementById('game-controls').style.display = 'block';
+                        nextQuestion(); // Host zieht direkt die erste Frage
+                    } else {
+                        document.getElementById('game-controls').style.display = 'none';
+                    }
+                }
+
+                // Wenn eine neue Frage kommt
                 if (data.type === "SHOW_QUESTION") {
-                    document.getElementById("card-category").innerText = data.category.toUpperCase();
-                    document.getElementById("question-display").innerText = data.text;
-                    document.querySelectorAll('.view').forEach(v => v.classList.remove('active-view'));
-                    document.getElementById('view-card').classList.add('active-view');
-                } else if (data.type === "GO_LOBBY") {
-                    document.querySelectorAll('.view').forEach(v => v.classList.remove('active-view'));
-                    document.getElementById('view-lobby').classList.add('active-view');
+                    document.getElementById('question-display').innerText = data.text;
                 }
             });
         }
-        function selectCategory(cat) {
-            const text = questionPool[cat][Math.floor(Math.random() * questionPool[cat].length)];
-            mqttClient.publish(`qrpong/room/${currentRoom}`, JSON.stringify({type: "SHOW_QUESTION", category: cat, text: text}));
+
+        // --- SPIEL LOGIK ---
+        function updatePlayerList() {
+            const listDiv = document.getElementById('player-list');
+            listDiv.innerHTML = "";
+            players.forEach(p => {
+                listDiv.innerHTML += `<div class="player-badge">${p}</div>`;
+            });
         }
-        function sendBackToLobby() {
-            mqttClient.publish(`qrpong/room/${currentRoom}`, JSON.stringify({type: "GO_LOBBY"}));
+
+        function startGame() {
+            mqttClient.publish(`neonpong/room/${roomCode}`, JSON.stringify({ type: "START_GAME" }));
+        }
+
+        function nextQuestion() {
+            const pool = questionDatabase[selectedMode];
+            
+            // Suche eine Frage, die noch nicht dran war
+            let availableQuestions = pool.filter(q => !askedQuestions.includes(q));
+            
+            if (availableQuestions.length === 0) {
+                // Wenn alle durch sind, von vorne anfangen
+                askedQuestions = [];
+                availableQuestions = pool;
+            }
+
+            const randomIndex = Math.floor(Math.random() * availableQuestions.length);
+            const selectedText = availableQuestions[randomIndex];
+            
+            askedQuestions.push(selectedText);
+
+            // Sende an alle (inklusive mir selbst)
+            mqttClient.publish(`neonpong/room/${roomCode}`, JSON.stringify({ 
+                type: "SHOW_QUESTION", 
+                text: selectedText 
+            }));
         }
     </script>
 </body>
